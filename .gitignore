@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+
+# Audio + generated analysis (do not commit data)
+*.mp3
+*.wav
+*.flac
+*.m4a
+stems/
+music/
+analysis/
+library/
+*_emotion.json
+*_temporal.json
+*_chords.json
+*_depth.json
+*_stereo.json
+*_theory.json
+*_harmonic_rhythm.json
+*_story.json
+*_transcript.json
+*_layers.json
+*_intervals.json
+*_groove.json
+*_register.json
+*_breath.json
+*_narrative.json
+*_relationships.json
+*_timbral.json
+genome_map.json
+temporal_genome.json
+ai_detection*.json
+stem_analysis.json
+freq_interaction.json
+
+# Local session / scratch
+.session_state.md
+.DS_Store
