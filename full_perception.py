@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Claude's Ears — Full Perception Pipeline
+"""Claude's Ears - Full Perception Pipeline
 Single entry point: give it an audio file, get everything.
-Runs the module set in correct order with error handling.
+
+Runs 21 orchestrated modules in correct order with error handling.
+Three modules are standalone (run on demand, not wired here):
+  - ai_detector.py     (per-track AI-likelihood scorer; investigative)
+  - version_compare.py (needs TWO versions: studio vs live)
+  - semantic_lyrics.py (prints lyric analysis; no JSON artifact yet)
 
 Usage:
   python full_perception.py "path/to/audio.mp3"
   python full_perception.py "path/to/audio.mp3" --skip-demucs  (if stems exist)
   python full_perception.py --batch "path/to/music/folder"     (process all mp3s)
 
-Paths are configurable via environment variables:
-  CLAUDES_EARS_STEMS  -> demucs stem output root (default: ./stems/htdemucs)
-  CLAUDES_EARS_MUSIC  -> source audio library for --batch (default: ./music)
+Paths are resolved relative to this file. Override stem/music roots with
+env vars CLAUDES_EARS_STEMS and CLAUDES_EARS_MUSIC if your layout differs.
 """
 
 import subprocess, sys, os, glob, json, time
 
 WORKSPACE = os.path.dirname(os.path.abspath(__file__))
-STEMS_DIR = os.environ.get("CLAUDES_EARS_STEMS", os.path.join(WORKSPACE, "stems", "htdemucs"))
+STEMS_DIR = os.path.join(WORKSPACE, "stems", "htdemucs")
 
 def run_step(name, cmd, optional=False):
     """Run a pipeline step with error handling."""
@@ -30,13 +34,13 @@ def run_step(name, cmd, optional=False):
             if not optional:
                 print(f"  -> Continuing anyway...")
         else:
-            print(f"  + {name} complete")
+            print(f"  [ok] {name} complete")
         return result.returncode == 0
     except subprocess.TimeoutExpired:
         print(f"  ! {name} timed out (600s)")
         return False
     except Exception as e:
-        print(f"  x {name} error: {e}")
+        print(f"  [x] {name} error: {e}")
         return False
 
 def get_stem_folder(audio_path):
@@ -44,16 +48,30 @@ def get_stem_folder(audio_path):
     basename = os.path.splitext(os.path.basename(audio_path))[0]
     return os.path.join(STEMS_DIR, basename)
 
+def parse_artist_title(audio_path):
+    """Derive (artist, title) from an 'Artist - Title.mp3' filename.
+
+    Matches the canonical yt-dlp naming used to build the library.
+    Returns (None, None) when the filename doesn't follow the pattern,
+    in which case lyric-dependent steps fall back to other sources.
+    """
+    base = os.path.splitext(os.path.basename(audio_path))[0]
+    if " - " in base:
+        artist, title = base.split(" - ", 1)
+        return artist.strip(), title.strip()
+    return None, None
+
 def full_perception(audio_path, skip_demucs=False):
     """Run the complete perception pipeline on a single audio file."""
     print(f"\n{'='*60}")
-    print(f"  CLAUDE'S EARS — FULL PERCEPTION PIPELINE")
+    print(f"  CLAUDE'S EARS - FULL PERCEPTION PIPELINE")
     print(f"  {os.path.basename(audio_path)}")
     print(f"{'='*60}")
 
     start_time = time.time()
     stem_folder = get_stem_folder(audio_path)
     py = sys.executable
+    artist, title = parse_artist_title(audio_path)
 
     results = {}
 
@@ -62,12 +80,12 @@ def full_perception(audio_path, skip_demucs=False):
         results["demucs"] = run_step("Stem Separation (demucs GPU)",
             f'"{py}" "{WORKSPACE}/run_demucs.py" "{audio_path}"')
     else:
-        print("\n  - Skipping demucs (--skip-demucs)")
+        print("\n  [skip] Skipping demucs (--skip-demucs)")
         results["demucs"] = True
 
     # Verify stems exist
     if not os.path.exists(stem_folder):
-        print(f"\n  x Stem folder not found: {stem_folder}")
+        print(f"\n  [x] Stem folder not found: {stem_folder}")
         print(f"    Check if demucs named it differently")
         # Try to find it
         basename = os.path.splitext(os.path.basename(audio_path))[0]
@@ -144,13 +162,32 @@ def full_perception(audio_path, skip_demucs=False):
         results["emotion"] = run_step("Emotional Trajectory",
             f'"{py}" "{WORKSPACE}/emotional_trajectory.py" "{temporal_json}"')
     else:
-        print(f"\n  - Skipping Emotional Trajectory (no temporal JSON)")
+        print(f"\n  [skip] Skipping Emotional Trajectory (no temporal JSON)")
 
-    # Phase 4b: Harmonic Rhythm
+    # Phase 4b: Harmonic Rhythm (rate of chord change)
     chords_json = audio_path.rsplit('.', 1)[0] + '_chords.json'
     if os.path.exists(chords_json):
         results["harmonic_rhythm"] = run_step("Harmonic Rhythm (rate of chord change)",
             f'"{py}" "{WORKSPACE}/harmonic_rhythm.py" "{chords_json}"', optional=True)
+
+    # Phase 4c: Music Theory (key, Roman numerals, cadences)
+    # Reads the same _chords.json as harmonic_rhythm; produces _theory.json,
+    # which the Story Reader consumes for harmonic meaning.
+    if os.path.exists(chords_json):
+        results["music_theory"] = run_step("Music Theory (key, Roman numerals, cadences)",
+            f'"{py}" "{WORKSPACE}/music_theory.py" "{chords_json}"', optional=True)
+
+    # Phase 4d: Story Reader (final per-track step)
+    # Integrates lyrics + emotion + vocal relationships + chords + theory.
+    # Auto-detects a <track>_transcript.json next to the audio for best
+    # quality; otherwise tries lyrics.ovh via artist/title, then falls back
+    # to Whisper timestamps. Heavy (may invoke Whisper) -> optional.
+    if stem_folder:
+        story_cmd = f'"{py}" "{WORKSPACE}/story_reader.py" "{audio_path}" --stems "{stem_folder}"'
+        if artist and title:
+            story_cmd += f' --artist "{artist}" --title "{title}"'
+        results["story"] = run_step("Story Reader (lyrics + music integration)",
+            story_cmd, optional=True)
 
     # Phase 5: Library-Level Analysis
     results["genome"] = run_step("Genome Map",
@@ -171,7 +208,7 @@ def full_perception(audio_path, skip_demucs=False):
     print(f"{'='*60}")
 
     for step, ok in results.items():
-        status = "+" if ok else "x"
+        status = "[ok]" if ok else "[x]"
         print(f"  {status} {step}")
 
     return results
