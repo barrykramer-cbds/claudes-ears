@@ -13,7 +13,7 @@ env/
 *.m4a
 stems/
 music/
-analysis/
+/analysis/
 library/
 *_emotion.json
 *_temporal.json
@@ -41,3 +41,7 @@ freq_interaction.json
 # Local session / scratch
 .session_state.md
 .DS_Store
+
+# Local tooling + planning (not part of the public repo)
+.claude/
+.project/
