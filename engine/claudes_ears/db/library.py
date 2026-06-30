@@ -5,6 +5,7 @@ per track (schema.sql is the frozen DDL; re-analysis updates, never duplicates).
 from __future__ import annotations
 
 import contextlib
+from dataclasses import dataclass
 from importlib import resources
 from typing import TYPE_CHECKING
 
@@ -15,6 +16,17 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from claudes_ears.models.perception import PerceptionDocument
+
+
+@dataclass(frozen=True)
+class TrackMetadata:
+    """Era/year/artist/genre for one track — consumed by temporal_genome."""
+
+    era: str | None
+    year: int | None
+    artist: str | None
+    genre: str | None
+
 
 _ENERGY_AROUSAL = {"low": 0.0, "medium": 0.5, "mid": 0.5, "high": 1.0}
 
@@ -112,3 +124,23 @@ def upsert_track(
     con.execute(_TRACK_UPSERT, _track_row(doc, perception_path))
     if doc.genome is not None:
         con.execute(_GENOME_UPSERT, [doc.track.id, doc.genome.as_list()])
+
+
+_METADATA_QUERY = "SELECT era, year, artist, genre FROM tracks WHERE track_id = ?"
+
+
+def get_track_metadata(
+    con: duckdb.DuckDBPyConnection,
+    track_id: str,
+) -> TrackMetadata | None:
+    """Return era/year/artist/genre for one track, or None if the track is not indexed."""
+    row = con.execute(_METADATA_QUERY, [track_id]).fetchone()
+    if row is None:
+        return None
+    era, year, artist, genre = row
+    return TrackMetadata(
+        era=str(era) if era is not None else None,
+        year=int(year) if year is not None else None,
+        artist=str(artist) if artist is not None else None,
+        genre=str(genre) if genre is not None else None,
+    )

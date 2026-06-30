@@ -2,7 +2,7 @@ import { createRouter } from "@tanstack/react-router";
 import { rootRoute } from "@/routes/root";
 import { indexRoute } from "@/routes/index";
 
-const routeTree = rootRoute.addChildren([indexRoute]);
+export const routeTree = rootRoute.addChildren([indexRoute]);
 
 export const router = createRouter({ routeTree, defaultPreload: "intent" });
 

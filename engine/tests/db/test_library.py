@@ -1,13 +1,14 @@
-"""Library upsert: idempotency, 12-dim vector storage, and emotion-summary derivation."""
+"""Library upsert: idempotency, 12-dim vector storage, emotion summary, and metadata query."""
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 import pytest
 
-from claudes_ears.db.library import upsert_track
-from claudes_ears.models.perception import GenomeVector
+from claudes_ears.db.library import get_track_metadata, upsert_track
+from claudes_ears.models.perception import GenomeVector, PerceptionDocument, TrackMeta
 
 from .conftest import make_doc, make_genome
 
@@ -62,3 +63,63 @@ def test_emotion_summary_null_without_emotion(con: duckdb.DuckDBPyConnection) ->
         "SELECT valence, arousal FROM tracks WHERE track_id = ?", ["song-a"]
     ).fetchone()
     assert row == (None, None)
+
+
+def _make_doc_with_metadata(
+    track_id: str,
+    *,
+    year: int | None = None,
+    era: str | None = None,
+    artist: str | None = None,
+    genre: str | None = None,
+) -> PerceptionDocument:
+    return PerceptionDocument(
+        track=TrackMeta(
+            id=track_id,
+            source_path=f"/music/{track_id}.mp3",
+            analyzed_at=datetime(2026, 6, 30, 12, 0, 0, tzinfo=UTC),
+            pipeline_version="1.0",
+            year=year,
+            era=era,
+            artist=artist,
+            genre=genre,
+        )
+    )
+
+
+def test_metadata_round_trip(con: duckdb.DuckDBPyConnection) -> None:
+    doc = _make_doc_with_metadata(
+        "classic-a", year=1971, era="golden-age", artist="Marvin Gaye", genre="soul"
+    )
+    upsert_track(con, doc)
+    meta = get_track_metadata(con, "classic-a")
+    assert meta is not None
+    assert meta.year == 1971
+    assert meta.era == "golden-age"
+    assert meta.artist == "Marvin Gaye"
+    assert meta.genre == "soul"
+
+
+def test_metadata_null_fields_preserved(con: duckdb.DuckDBPyConnection) -> None:
+    # Tracks with no metadata still return a result, all fields None.
+    upsert_track(con, make_doc("no-meta"))
+    meta = get_track_metadata(con, "no-meta")
+    assert meta is not None
+    assert meta.year is None
+    assert meta.era is None
+    assert meta.artist is None
+    assert meta.genre is None
+
+
+def test_metadata_unknown_track_returns_none(con: duckdb.DuckDBPyConnection) -> None:
+    meta = get_track_metadata(con, "ghost-track")
+    assert meta is None
+
+
+def test_metadata_updated_on_reanalysis(con: duckdb.DuckDBPyConnection) -> None:
+    upsert_track(con, _make_doc_with_metadata("song-x", year=1965, genre="blues"))
+    upsert_track(con, _make_doc_with_metadata("song-x", year=1970, genre="soul"))
+    meta = get_track_metadata(con, "song-x")
+    assert meta is not None
+    assert meta.year == 1970
+    assert meta.genre == "soul"

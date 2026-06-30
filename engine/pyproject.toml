@@ -180,3 +180,4 @@ testpaths = ["tests"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 addopts = "-q"
+filterwarnings = ["error"]
