@@ -49,36 +49,40 @@ Orchestration: full_perception.py   ·   Comparison tool: version_compare.py
 ```bash
 git clone https://github.com/barrykramer-cbds/claudes-ears.git
 cd claudes-ears
-pip install -r requirements.txt
-# ffmpeg must be on PATH (used by librosa/demucs/yt-dlp)
+
+# Engine (Python 3.12, uv)
+cd engine && uv sync --extra ml && cd ..
+
+# Desktop app (pnpm)
+cd desktop && pnpm install && cd ..
+# ffmpeg must be on PATH (used by librosa, separation, yt-dlp)
 ```
 
-GPU is recommended for `demucs`. On some NVIDIA cards Whisper must run with `fp16=False` (already set in `story_reader.py`).
+A GPU is strongly recommended for stem separation — CPU works but takes minutes per track.
 
-## Usage
+## Running it
 
-Paths are configurable via environment variables (defaults are relative to the repo):
+Two processes, two terminals, from the repo root:
+
+```bash
+# 1. Engine (FastAPI sidecar on 127.0.0.1:8765)
+engine/.venv/bin/claudes-ears-serve            # add --reload for dev
+
+# 2. Frontend (vite dev server; proxies API calls to the sidecar)
+cd desktop && pnpm dev
+```
+
+Open the printed vite URL, hit **Add** and drop in a YouTube URL or a local audio file — the full
+pipeline runs with live per-step progress, and finished tracks land in the library dashboard.
+
+Paths are configurable via environment variables (defaults are relative to the engine dir):
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `CLAUDES_EARS_STEMS` | `./stems/htdemucs` | demucs stem output root |
-| `CLAUDES_EARS_MUSIC` | `./music` | source audio library (batch mode) |
+| `CLAUDES_EARS_STEMS` | `./stems/htdemucs` | stem separation output root |
+| `CLAUDES_EARS_MUSIC` | `./music` | source audio library (YouTube downloads land here) |
 
-```bash
-# Full pipeline on one track
-python full_perception.py "path/to/song.mp3"
-
-# Skip separation if stems already exist
-python full_perception.py "path/to/song.mp3" --skip-demucs
-
-# Batch a folder
-python full_perception.py --batch "path/to/music_folder"
-
-# Individual modules (each takes a path and writes a sibling JSON)
-python vocal_relationships.py stems/htdemucs/<track>/vocals.wav
-python ai_detector.py stems/htdemucs/<track>
-python version_compare.py studio.mp3 live.mp3 --label-a Studio --label-b Live
-```
+Single pipeline steps can also run headless: `engine/.venv/bin/claudes-ears <step> <path>`.
 
 ## Design principles
 

@@ -1,58 +1,64 @@
-# Session Handoff — 2026-07-03 (Audit complete → Phase 4 next)
+# Session Handoff — 2026-07-03 (App is live; real run needs a GPU)
 
-> Read this first. **Direction now: start Phase 4 prod wiring**, beginning with a real audio run to
-> flush out bugs. Polish fixes landed; a full-stack audit reset our understanding of what's real.
+> Read this first. **Direction now: Phase 4.1.7 — get the stack running on the MacBook Pro (MPS)**,
+> then finish the first real run (4.1.1) there. CPU separation on this box is a confirmed no-go.
 
 ## Where we are
 
-- **Committed + pushed** on `origin/feat/desktop-app` (origin = Barry's repo; see "After Phase 4"):
-  - `51e508e` — G2 (engine/ + desktop/ restructure, dep modernization, demucs→audio-separator).
-  - `a1ab948` — Window 2: 12 derived module ports + FastAPI sidecar + db metadata/twins + full desktop
-    workspace. All suites green.
-- Polish fixes **committed** as `818f169` (gate green: eslint + tsc + vitest 24 passed): `randomId()`
-  v4 fallback fixing the `crypto.randomUUID` upload crash; DropZone deleted for a quiet empty state.
-- Untracked screenshots (`app-entry.png`, `app-workspace.png`) remain unstaged.
+- **Remotes consolidated:** the `ul0gic` fork is deleted. `origin` = Barry's repo
+  (`barrykramer-cbds/claudes-ears`) with direct push access. Work stays on `feat/desktop-app`,
+  merged straight into `origin/main` when done — **no PR gate**, so run the deferred adversarial
+  review before merging.
+- **Committed + pushed on `origin/feat/desktop-app`** (all gates green at each commit):
+  - `818f169` — randomId() UUID fallback; DropZone removed for a quiet empty state.
+  - `3391a04` — `.project/` planning docs now tracked in the repo (un-gitignored; `.claude/` stays local).
+  - `3547a8a` — **4.4.6 + 4.4.7**: YouTube URL ingest (`POST /jobs` takes exactly one of
+    `audio_path` | `source_url`; yt-dlp → music dir; `download` SSE step with percent before the 21
+    pipeline steps) + mock retired (`VITE_USE_MOCK` default false), library hydrates from
+    `GET /library`, dashboard of analyzed tracks, Add Track modal (YouTube URL | file picker).
+    Also: `claudes-ears-serve` console script (uvicorn on 127.0.0.1:8765) and a fixed SSE race
+    (terminal sentinel could overtake the final event).
+  - `37def1d` — CORS middleware for browser-dev origins (`CLAUDES_EARS_DEV_PORTS`, default 5173).
+  - `f456b8a` — vite dev proxy (`/jobs`, `/library` → 127.0.0.1:8765); renderer fetches relative
+    paths, so serving the UI on a LAN host works. Electron will inject an absolute base URL.
 
-## The audit (this session's main event)
+## The first real run (4.1.1) — attempted, aborted
 
-Ran 4 parallel readers over backend / DuckDB / frontend / pipeline. **Full writeup: `build-plan.md` →
-"Audit Snapshot — 2026-06-30".** One-line verdict: **the backend is real and green; the frontend is
-dormant behind the mock flag.**
+End-to-end via the app worked: YouTube download → music dir → demucs separation started, live SSE
+progress in the UI. **User aborted: CPU separation is unusably slow** (~3.5 min per demucs pass over
+31 chunks, several passes per track). **The only GPU in the house is a MacBook Pro** → new task
+**4.1.7**: torch **MPS** on Apple Silicon (audio-separator + faster-whisper device selection),
+macOS-first packaging in Phase 6. Resume 4.1.1 on the Mac.
 
-- Real & unit-tested (but **never run on real audio**): orchestrator (21 steps, in-process), real SSE,
-  live DuckDB persistence, HNSW twin search. Endpoints: `POST /jobs`, job status/perception/events(SSE),
-  `GET /library`, `/library/{id}/twins`.
-- Dormant: `lib/api.ts` real client is gated by `VITE_USE_MOCK` (defaults **true**). The dev "song" is the
-  `mock/perception.ts` fixture ("The Weight" by The Band).
-- Frontend library is in-memory only (wiped on reload); never calls `GET /library`.
-- New gaps → now tracked as **Phase 4.1.6 + 4.4.1–4.4.5** in build-plan: no rename/delete/track-detail,
-  jobs in-memory (no list/cancel/persistence), no upload (sidecar-local path only), `library.duckdb`
-  CWD-relative, `get_track_metadata→temporal_genome` never invoked at runtime.
+Carry-forward observations from the aborted run:
+- soundfile can't probe the m4a container ("Format not recognised" warning, defaults 16-bit) —
+  consider yt-dlp extracting to mp3/wav instead of m4a.
+- The consolidator (raw shapes vs schema.md §2) has still **never seen real module output** — expect
+  the real bugs there once a run completes.
 
-## Next action — Phase 4.1.1 (real run), currently BLOCKED
+## Running it (dev)
 
-The single highest-value next step: run the orchestrator on **one real vocal track** to surface
-raw-shape mismatches vs `schema.md` §2. **Blocked only on an audio file** — none in the repo.
-
-- To unblock: drop a vocal track (multi-voice exercises the most modules) into
-  `/home/ul0gic/projects/claudes-ears/music/`, or give an absolute path.
-- Runtime is ready: `ffmpeg`, `audio_separator`, `faster_whisper`, orchestrator all import.
-  **CPU-only, no GPU** → separation takes minutes/track, not seconds. Be patient on the first run.
-- Drive it via `engine/.venv/bin/python` calling `run_track` (NOT the dead root `full_perception.py`,
-  NOT the server). The CLI (`python -m claudes_ears <step> <path>`) only runs single steps.
+```bash
+engine/.venv/bin/claudes-ears-serve            # sidecar, 127.0.0.1:8765 (--reload, --port available)
+cd desktop && pnpm dev                          # renderer; proxies API same-origin
+```
+User runs servers themselves — hand over commands, never start them.
 
 ## Gotchas (carry forward)
 
-- **Never start servers.** User runs dev servers themselves — hand over the command.
-- **Use `engine/.venv/bin/<tool>`, not `uv run`** (uv run can strip the `ml` extra + lock-contend).
-  Shell `cd` doesn't persist between Bash calls — use absolute paths or `cd … && …`.
-- **Stop hook** (`.claude/hooks/verify.sh`) is subtree-aware, Stop-only, blocking.
-- Dead root `full_perception.py` / `run_demucs.py` — Phase 4.1.5 deletes them.
-- **Deferred:** adversarial `code-review-engineer` pass over Window 2 — run before finalizing the PR.
+- **Use `engine/.venv/bin/<tool>`, not `uv run`** (strips the ml extra / lock contention).
+  `uv pip install -e . --python .venv/bin/python` is fine for re-registering entry points.
+- **Stop hook** (`.claude/hooks/verify.sh`) fires on every stop — during parallel agent work it
+  snapshots mid-edit trees and reports transient failures; verify at the gate, don't chase each one.
+- Index-only tracks (hydrated from DuckDB, not analyzed this session) open a `TrackSummaryPane`,
+  not the full workspace — blocked on 4.4.2 (`GET /library/{id}` perception endpoint).
+- Dead root `full_perception.py` / `run_demucs.py` — 4.1.5 deletes them (still pending).
+- **Deferred:** adversarial `code-review-engineer` pass over Windows 2+ — mandatory before merging
+  to `origin/main` (no PR gate anymore).
 
-## After Phase 4
+## Next actions, in order
 
-Phase 5 hardening, Phase 6 PyInstaller + electron-builder installer + signing. The fork is deleted;
-`origin` is now Barry's repo (`barrykramer-cbds/claudes-ears`) with direct push access — work stays on
-`feat/desktop-app`, merged straight into `origin/main` when done (no PR gate, so run the deferred
-adversarial review first).
+1. **4.1.7** — MacBook Pro + MPS bring-up; document macOS setup; re-run 4.1.1 there.
+2. **4.1.1 finish** — first full `PerceptionDocument` from a real track; fix consolidator mismatches.
+3. Unblocked meanwhile on this box: 4.1.5 (delete dead root scripts), 4.3.1 (doc reconcile),
+   4.4.2 (track CRUD + detail endpoint), 4.4.4 (data-dir resolution).

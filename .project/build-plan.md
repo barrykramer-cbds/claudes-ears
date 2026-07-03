@@ -509,7 +509,8 @@ build notes handled in the consolidator (`2.3.2`) and `ai_detector` refactor (`3
 
 | Status | Task | Description | Agent |
 | ------ | ---- | ----------- | ----- |
-| ⬜ | 4.1.1 | **Real run** — run `orchestrator` on a real audio file: separation → 24 `analyze()` → consolidator → `PerceptionDocument`. Fix any raw-shape mismatch against `schema.md` §2 discovered against real outputs. | 🟢 python-eng |
+| 🔄 | 4.1.1 | **Real run** — run `orchestrator` on a real audio file: separation → 24 `analyze()` → consolidator → `PerceptionDocument`. Fix any raw-shape mismatch against `schema.md` §2 discovered against real outputs. 2026-07-03: first attempt via YouTube ingest (end-to-end download→separation worked); **aborted by user — CPU separation is unusably slow** (~3.5 min per demucs pass × several passes). Resume on GPU (4.1.7). | 🟢 python-eng |
+| ⬜ | 4.1.7 | **GPU acceleration on Apple Silicon (blocker for 4.1.1)** — the only GPU in the house is a MacBook Pro. Get the stack running there with torch **MPS**: verify audio-separator + faster-whisper device selection (MPS / CoreML fallbacks), document macOS setup, re-run 4.1.1 on the Mac. Packaging target (Phase 6) shifts macOS-first. Fallback if MPS is not viable for a model: smaller/faster separation model choice. | 🟢 python-eng + ⚙️ devops |
 | ⬜ | 4.1.2 | **Verify degraded paths (ISSUE-008)** — force a failed/degraded step (e.g. missing stem, short audio, mono, `{error}` emotion) and assert the domain serializes as `null`, never a missing key or `{error}` blob. | 🟢 python-eng |
 | ⬜ | 4.1.3 | **Index the doc** — consolidator output upserts into DuckDB (`tracks` + `genome_vectors`); twin-search returns sane neighbours on a 2–3 track set. Verify genome vector persisted (schema finding #4). | 🟢 python-eng |
 | ⬜ | 4.1.4 | **Capture semantic_lyrics (ISSUE-012) + env unification (ISSUE-007)** — confirm the in-process orchestrator captures the VADER+LLM result into `lyrics`, and all stem I/O honors `config.py`. | 🟢 python-eng |
@@ -770,6 +771,6 @@ Adversarial review graded the contract **A− / sound to freeze**; these were cl
 
 ---
 
-_Last updated: 2026-06-30 (full-stack audit + Phase 4 scope widened)_
-_Current Phase: Phases 1–3 complete (a1ab948); Frontend Polish interlude (crypto/dropzone fixes landed, uncommitted)_
-_Next Milestone: Phase 4.1.1 — first real audio run through the orchestrator (blocked on a real song)_
+_Last updated: 2026-07-03 (YouTube ingest + live dashboard shipped; first real run aborted on CPU)_
+_Current Phase: Phase 4 in progress — 4.4.6/4.4.7 ✅ (f456b8a); 4.1.1 attempted, needs GPU_
+_Next Milestone: Phase 4.1.7 — MPS on the MacBook Pro, then finish 4.1.1 there_
