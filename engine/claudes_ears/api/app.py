@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Protocol
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from claudes_ears.config import music_dir
@@ -251,6 +252,16 @@ def _warm_whisper() -> None:
         logger.warning("whisper warm-up skipped: %s", error)
 
 
+def _dev_origins() -> list[str]:
+    """Browser-dev only: Electron and same-origin callers never send these Origins."""
+    ports = os.environ.get("CLAUDES_EARS_DEV_PORTS", "5173")
+    return [
+        f"http://{host}:{port.strip()}"
+        for port in ports.split(",")
+        for host in ("localhost", "127.0.0.1")
+    ]
+
+
 def create_app(
     *,
     runner: RunTrack = run_track,
@@ -266,6 +277,12 @@ def create_app(
     )
 
     app = FastAPI(title="Claude's Ears", lifespan=lifespan)
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_dev_origins(),
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.state.app_state = AppState(
         library_path=resolved_library,
         work_dir=resolved_work,
