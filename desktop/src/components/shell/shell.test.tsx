@@ -38,9 +38,9 @@ describe("app shell", () => {
     jobStore.getState().reset();
   });
 
-  it("shows the drop target in the main pane when the library is empty", async () => {
+  it("shows a quiet empty state in the main pane when the library is empty", async () => {
     renderApp();
-    expect(await screen.findByText(/drop a song/i)).toBeInTheDocument();
+    expect(await screen.findByText(/No track yet — add one to begin/)).toBeInTheDocument();
     expect(screen.getByText(/No tracks yet/)).toBeInTheDocument();
   });
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { env } from "@/env";
+import { randomId } from "@/lib/utils";
 import { mockPerception } from "@/mock/perception";
 import { mockProgressStream } from "@/mock/sse";
 import {
@@ -40,7 +41,7 @@ export function createJob(sourcePath: string): Promise<Job> {
   if (env.VITE_USE_MOCK) {
     return Promise.resolve(
       JobSchema.parse({
-        id: crypto.randomUUID(),
+        id: randomId(),
         source_path: sourcePath,
         status: "running",
         current_step: null,

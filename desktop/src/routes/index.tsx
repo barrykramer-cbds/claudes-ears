@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { rootRoute } from "@/routes/root";
 import { AppShell } from "@/components/shell/AppShell";
-import { DropZone } from "@/components/DropZone";
 import { PipelineProgress } from "@/components/PipelineProgress";
 import { Workspace } from "@/components/workspace/Workspace";
 import { Button } from "@/components/ui/button";
@@ -88,9 +87,7 @@ function Home() {
   } else {
     main = (
       <PaneCenter>
-        <div className="w-full max-w-xl">
-          <DropZone onPick={(p) => void start(p)} />
-        </div>
+        <p className="text-sm text-muted">No track yet — add one to begin.</p>
       </PaneCenter>
     );
   }
