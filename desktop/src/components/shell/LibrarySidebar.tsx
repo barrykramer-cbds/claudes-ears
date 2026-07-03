@@ -1,12 +1,12 @@
 import { useShallow } from "zustand/react/shallow";
 import { Loader2, PanelLeft, PanelLeftClose, Plus } from "lucide-react";
-import { useLibrary } from "@/stores/library-store";
 import { useJobStore } from "@/stores/job-store";
-import { VOICE_BG, isVoiceState, type VoiceState } from "@/components/tabs/voice-taxonomy";
+import { VOICE_BG } from "@/components/tabs/voice-taxonomy";
+import type { LibraryEntry } from "@/lib/library-entries";
 import { cn, formatClock } from "@/lib/utils";
-import type { PerceptionDocument } from "@/lib/schemas";
 
 interface LibrarySidebarProps {
+  entries: LibraryEntry[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   onAdd: () => void;
@@ -15,24 +15,17 @@ interface LibrarySidebarProps {
   onToggleCollapse: () => void;
 }
 
-function dominantVoice(doc: PerceptionDocument): VoiceState | null {
-  const dist = doc.vocals?.relationships?.relationship_distribution;
-  if (!dist) return null;
-  const top = Object.entries(dist).sort((a, b) => b[1] - a[1])[0]?.[0];
-  return top && isVoiceState(top) ? top : null;
+function subtitle(entry: LibraryEntry): string {
+  const duration = entry.durationS != null ? formatClock(entry.durationS) : null;
+  return [entry.keyMode, duration].filter(Boolean).join(" · ");
 }
 
-function subtitle(doc: PerceptionDocument): string {
-  const key = doc.harmony?.theory?.key
-    ? `${doc.harmony.theory.key} ${doc.harmony.theory.mode}`
-    : null;
-  const duration = doc.track.duration_s ? formatClock(doc.track.duration_s) : null;
-  return [key, duration].filter(Boolean).join(" · ");
-}
-
-const basename = (p: string) => p.split(/[\\/]/).pop() ?? p;
+// A URL source shows as its trimmed address; a path shows as its basename.
+const sourceName = (p: string) =>
+  /^https?:\/\//.test(p) ? p.replace(/^https?:\/\/(www\.)?/, "") : (p.split(/[\\/]/).pop() ?? p);
 
 export function LibrarySidebar({
+  entries,
   selectedId,
   onSelect,
   onAdd,
@@ -40,7 +33,6 @@ export function LibrarySidebar({
   collapsed,
   onToggleCollapse,
 }: LibrarySidebarProps) {
-  const tracks = useLibrary((s) => s.tracks);
   const { status, sourcePath } = useJobStore(
     useShallow((s) => ({ status: s.status, sourcePath: s.sourcePath })),
   );
@@ -48,10 +40,8 @@ export function LibrarySidebar({
 
   const q = query.trim().toLowerCase();
   const filtered = q
-    ? tracks.filter((t) =>
-        `${t.track.title ?? t.track.id} ${t.track.artist ?? ""}`.toLowerCase().includes(q),
-      )
-    : tracks;
+    ? entries.filter((e) => `${e.title} ${e.artist ?? ""}`.toLowerCase().includes(q))
+    : entries;
 
   if (collapsed) {
     return (
@@ -92,20 +82,18 @@ export function LibrarySidebar({
           <div className="flex items-center gap-2.5 rounded-button px-2.5 py-2 text-sm text-fg-secondary">
             <Loader2 className="size-3.5 shrink-0 text-active motion-safe:animate-spin" aria-hidden />
             <div className="min-w-0">
-              <p className="truncate font-medium">{basename(sourcePath)}</p>
+              <p className="truncate font-medium">{sourceName(sourcePath)}</p>
               <p className="font-mono text-[10px] text-faint">analyzing…</p>
             </div>
           </div>
         )}
 
-        {filtered.map((doc) => {
-          const id = doc.track.id;
-          const voice = dominantVoice(doc);
-          const active = id === selectedId;
+        {filtered.map((entry) => {
+          const active = entry.id === selectedId;
           return (
             <button
-              key={id}
-              onClick={() => onSelect(id)}
+              key={entry.id}
+              onClick={() => onSelect(entry.id)}
               aria-current={active ? "true" : undefined}
               className={cn(
                 "flex w-full items-center gap-2.5 rounded-button border-l-2 px-2.5 py-2 text-left text-sm transition-colors duration-150 ease-out",
@@ -115,13 +103,16 @@ export function LibrarySidebar({
               )}
             >
               <span
-                className={cn("size-1.5 shrink-0 rounded-full", voice ? VOICE_BG[voice] : "bg-muted")}
+                className={cn(
+                  "size-1.5 shrink-0 rounded-full",
+                  entry.voice ? VOICE_BG[entry.voice] : "bg-muted",
+                )}
                 aria-hidden
               />
               <span className="min-w-0">
-                <span className="block truncate font-medium">{doc.track.title ?? id}</span>
+                <span className="block truncate font-medium">{entry.title}</span>
                 <span className="block truncate font-mono text-[10px] text-faint">
-                  {subtitle(doc)}
+                  {subtitle(entry)}
                 </span>
               </span>
             </button>
@@ -129,9 +120,7 @@ export function LibrarySidebar({
         })}
 
         {filtered.length === 0 && !analyzing && (
-          <p className="px-2.5 py-3 text-sm text-faint">
-            {q ? "No matches." : "No tracks yet."}
-          </p>
+          <p className="px-2.5 py-3 text-sm text-faint">{q ? "No matches." : "No tracks yet."}</p>
         )}
       </nav>
 

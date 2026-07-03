@@ -540,6 +540,8 @@ build notes handled in the consolidator (`2.3.2`) and `ai_detector` refactor (`3
 | ⬜ | 4.4.3 | **Job persistence + list/cancel** — jobs are in-memory; a sidecar restart orphans running/completed status (DB row survives, job doesn't). Add `GET /jobs` (list), cancel/delete, and durable job state. | 🟢 python-eng |
 | ⬜ | 4.4.4 | **Data-dir resolution** — `library.duckdb` defaults CWD-relative; resolve to a stable per-user app data dir (honor `CLAUDES_EARS_LIBRARY`, packaged-app safe). Same for `work_dir`. | 🟢 python-eng + ⚙️ devops |
 | ⬜ | 4.4.5 | **Ingest path decision** — `POST /jobs` takes a sidecar-local `audio_path` only (no upload). For the local desktop app this is fine via the Electron picker bridge; confirm the contract and document it (no HTTP upload endpoint needed for a single-user local tool). | ⚫ Lead |
+| ✅ | 4.4.6 | **YouTube URL ingest** — `POST /jobs` accepts exactly one of `audio_path` \| `source_url`; sidecar downloads via yt-dlp into the music dir (download progress as a `download` SSE step before the pipeline), then runs the normal pipeline. yt-dlp was a declared dep with no feature. | 🟢 python-eng |
+| ✅ | 4.4.7 | **Add-track modal + live dashboard** — mock retired (`VITE_USE_MOCK` default false); library hydrates from `GET /library` (subsumes 4.4.1); titlebar Add opens a modal: "From YouTube" (URL) \| "Upload" (file picker/path); dashboard of prior songs. `frontend-design` drives visual direction. | 🔵 react-eng |
 
 ---
 

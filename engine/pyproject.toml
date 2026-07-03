@@ -47,6 +47,7 @@ dev = [
 
 [project.scripts]
 claudes-ears = "claudes_ears.cli:main"
+claudes-ears-serve = "claudes_ears.api.serve:main"
 
 [build-system]
 requires = ["hatchling"]

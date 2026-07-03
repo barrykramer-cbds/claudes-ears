@@ -1,17 +1,22 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
 import { createRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useShallow } from "zustand/react/shallow";
 import { rootRoute } from "@/routes/root";
 import { AppShell } from "@/components/shell/AppShell";
+import { AddTrackModal } from "@/components/AddTrackModal";
 import { PipelineProgress } from "@/components/PipelineProgress";
+import { LibraryDashboard } from "@/components/dashboard/LibraryDashboard";
+import { TrackSummaryPane } from "@/components/dashboard/TrackSummaryPane";
 import { Workspace } from "@/components/workspace/Workspace";
 import { Button } from "@/components/ui/button";
-import { fetchPerception } from "@/lib/api";
+import { fetchPerception, type JobSource } from "@/lib/api";
+import { libraryQueryOptions } from "@/lib/queries";
 import { queryKeys } from "@/lib/query-keys";
+import { mergeEntries } from "@/lib/library-entries";
 import { TabIdSchema, type TabId } from "@/lib/tabs";
-import { useJobStore } from "@/stores/job-store";
+import { jobStore, useJobStore } from "@/stores/job-store";
 import { libraryStore, useLibrary } from "@/stores/library-store";
 
 function PaneCenter({ children }: { children: React.ReactNode }) {
@@ -21,18 +26,20 @@ function PaneCenter({ children }: { children: React.ReactNode }) {
 function Home() {
   const { track: selectedId, tab } = indexRoute.useSearch();
   const navigate = indexRoute.useNavigate();
-  const { status, jobId, steps, activeStep, error, start, reset } = useJobStore(
+  const queryClient = useQueryClient();
+  const [addOpen, setAddOpen] = useState(false);
+  const { status, jobId, steps, activeStep, error, reset } = useJobStore(
     useShallow((s) => ({
       status: s.status,
       jobId: s.jobId,
       steps: s.steps,
       activeStep: s.activeStep,
       error: s.error,
-      start: s.start,
       reset: s.reset,
     })),
   );
-  const tracks = useLibrary((s) => s.tracks);
+  const docs = useLibrary((s) => s.tracks);
+  const library = useQuery(libraryQueryOptions());
 
   const perception = useQuery({
     queryKey: queryKeys.perception.detail(jobId ?? "none"),
@@ -41,25 +48,29 @@ function Home() {
     staleTime: Infinity,
   });
 
-  // A completed analysis enters the library and becomes the selection (lands on Voices).
+  // A completed analysis enters the library, refreshes the index, and becomes the selection.
   useEffect(() => {
     const doc = perception.data;
     if (status === "done" && doc) {
       libraryStore.getState().add(doc);
+      void queryClient.invalidateQueries({ queryKey: queryKeys.library.list });
       void navigate({ search: (p) => ({ ...p, track: doc.track.id, tab: "voices" as TabId }) });
       reset();
     }
-  }, [status, perception.data, navigate, reset]);
+  }, [status, perception.data, navigate, reset, queryClient]);
 
-  const onAdd = async () => {
-    const picked = await window.electron?.openAudioFile();
-    void start(picked ?? "/music/dropped-sample.flac");
+  const entries = mergeEntries(library.data?.items ?? [], docs);
+
+  const onAdd = () => setAddOpen(true);
+  const onSubmitSource = (source: JobSource) => {
+    setAddOpen(false);
+    void jobStore.getState().start(source);
   };
   const onSelectTrack = (id: string) => void navigate({ search: (p) => ({ ...p, track: id }) });
   const onSelectTab = (id: TabId) => void navigate({ search: (p) => ({ ...p, tab: id }) });
 
-  const selected =
-    (selectedId ? tracks.find((t) => t.track.id === selectedId) : undefined) ?? tracks[0] ?? null;
+  const selectedDoc = selectedId ? docs.find((t) => t.track.id === selectedId) : undefined;
+  const selectedEntry = selectedId ? entries.find((e) => e.id === selectedId) : undefined;
 
   let main: React.ReactNode;
   if (status === "error") {
@@ -70,8 +81,8 @@ function Home() {
             <span className="size-1.5 rounded-full bg-failed" aria-hidden />
             <p className="text-fg">{error ?? "Analysis failed."}</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void onAdd()}>
-            Try another file
+          <Button variant="ghost" size="sm" onClick={onAdd}>
+            Try another source
           </Button>
         </div>
       </PaneCenter>
@@ -82,8 +93,32 @@ function Home() {
         <PipelineProgress statuses={steps} activeStep={activeStep} />
       </div>
     );
-  } else if (selected) {
-    main = <Workspace doc={selected} tab={tab} onTabChange={onSelectTab} />;
+  } else if (selectedDoc) {
+    main = <Workspace doc={selectedDoc} tab={tab} onTabChange={onSelectTab} />;
+  } else if (selectedEntry) {
+    main = <TrackSummaryPane entry={selectedEntry} />;
+  } else if (entries.length > 0) {
+    main = <LibraryDashboard entries={entries} onOpen={onSelectTrack} />;
+  } else if (library.isPending) {
+    main = (
+      <PaneCenter>
+        <p className="font-mono text-xs text-faint">reading the library…</p>
+      </PaneCenter>
+    );
+  } else if (library.isError) {
+    main = (
+      <PaneCenter>
+        <div className="space-y-4 text-center">
+          <div className="flex items-center justify-center gap-2">
+            <span className="size-1.5 rounded-full bg-failed" aria-hidden />
+            <p className="text-fg">The analyzer isn't reachable — is the sidecar running?</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void library.refetch()}>
+            Retry
+          </Button>
+        </div>
+      </PaneCenter>
+    );
   } else {
     main = (
       <PaneCenter>
@@ -94,11 +129,13 @@ function Home() {
 
   return (
     <AppShell
-      selectedId={selected?.track.id ?? null}
+      entries={entries}
+      selectedId={selectedEntry?.id ?? null}
       onSelectTrack={onSelectTrack}
-      onAdd={() => void onAdd()}
+      onAdd={onAdd}
     >
       {main}
+      <AddTrackModal open={addOpen} onClose={() => setAddOpen(false)} onSubmit={onSubmitSource} />
     </AppShell>
   );
 }

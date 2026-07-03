@@ -22,4 +22,21 @@ describe("PipelineProgress", () => {
     const expected = String(Math.round((2 / PIPELINE_STEP_COUNT) * 100));
     expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", expected);
   });
+
+  it("renders unknown SSE steps (YouTube download) ahead of the pipeline", () => {
+    render(
+      <PipelineProgress
+        statuses={{ download: "completed", separation: "started" }}
+        activeStep="separation"
+      />,
+    );
+    expect(screen.getByText("Downloading audio")).toBeInTheDocument();
+    expect(screen.getByText("Source")).toBeInTheDocument();
+    expect(screen.getByText(`1 / ${PIPELINE_STEP_COUNT + 1}`)).toBeInTheDocument();
+  });
+
+  it("humanizes an unrecognized step name instead of crashing", () => {
+    render(<PipelineProgress statuses={{ future_step: "started" }} activeStep="future_step" />);
+    expect(screen.getByText("future step")).toBeInTheDocument();
+  });
 });

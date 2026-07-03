@@ -7,10 +7,19 @@ import {
   JobSchema,
   PerceptionDocumentSchema,
   ProgressEventSchema,
+  TrackPageSchema,
   type Job,
   type PerceptionDocument,
   type ProgressEvent,
+  type TrackPage,
 } from "@/lib/schemas";
+
+// POST /jobs takes exactly one source: a sidecar-local file or a URL the sidecar downloads.
+export type JobSource = { audio_path: string } | { source_url: string };
+
+export function sourceLabel(source: JobSource): string {
+  return "audio_path" in source ? source.audio_path : source.source_url;
+}
 
 class ApiError extends Error {
   constructor(
@@ -37,12 +46,12 @@ export interface ProgressHandlers {
   onError?: (error: Error) => void;
 }
 
-export function createJob(sourcePath: string): Promise<Job> {
+export function createJob(source: JobSource): Promise<Job> {
   if (env.VITE_USE_MOCK) {
     return Promise.resolve(
       JobSchema.parse({
         id: randomId(),
-        source_path: sourcePath,
+        source_path: sourceLabel(source),
         status: "running",
         current_step: null,
         step_index: 0,
@@ -55,8 +64,23 @@ export function createJob(sourcePath: string): Promise<Job> {
   }
   return request("/jobs", JobSchema, {
     method: "POST",
-    body: JSON.stringify({ source_path: sourcePath }),
+    body: JSON.stringify(source),
   });
+}
+
+export function fetchLibrary(): Promise<TrackPage> {
+  if (env.VITE_USE_MOCK) {
+    const t = mockPerception.track;
+    return Promise.resolve(
+      TrackPageSchema.parse({
+        items: [{ track_id: t.id, title: t.title, artist: t.artist }],
+        total: 1,
+        page: 1,
+        limit: 200,
+      }),
+    );
+  }
+  return request("/library?page=1&limit=200", TrackPageSchema);
 }
 
 export function fetchPerception(jobId: string): Promise<PerceptionDocument> {

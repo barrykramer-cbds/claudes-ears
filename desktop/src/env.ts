@@ -5,7 +5,7 @@ const Env = z.object({
   VITE_API_BASE_URL: z.url().default("http://127.0.0.1:8765"),
   VITE_USE_MOCK: z
     .enum(["true", "false"])
-    .default("true")
+    .default("false")
     .transform((v) => v === "true"),
 });
 

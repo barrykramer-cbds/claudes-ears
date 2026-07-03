@@ -1,7 +1,22 @@
 import { CheckCircle2, Circle, Loader2, MinusCircle, XCircle } from "lucide-react";
-import { PIPELINE_STEPS } from "@/lib/pipeline-steps";
+import { PIPELINE_STEPS, type PipelineStep } from "@/lib/pipeline-steps";
 import type { StepStatus } from "@/lib/schemas";
 import { cn } from "@/lib/utils";
+
+const KNOWN = new Set(PIPELINE_STEPS.map((s) => s.name));
+const EXTRA_LABELS: Record<string, string> = { download: "Downloading audio" };
+
+// Steps the sidecar emits that aren't in the pinned 21 (e.g. a YouTube "download"
+// pre-step) render ahead of the pipeline instead of being dropped or crashing.
+function extraSteps(statuses: Record<string, StepStatus>): PipelineStep[] {
+  return Object.keys(statuses)
+    .filter((name) => !KNOWN.has(name))
+    .map((name) => ({
+      name,
+      label: EXTRA_LABELS[name] ?? name.replaceAll("_", " "),
+      phase: "Source",
+    }));
+}
 
 interface PipelineProgressProps {
   statuses: Record<string, StepStatus>;
@@ -21,8 +36,9 @@ function StatusIcon({ status }: { status: StepStatus | undefined }) {
 }
 
 export function PipelineProgress({ statuses, activeStep }: PipelineProgressProps) {
-  const total = PIPELINE_STEPS.length;
-  const done = PIPELINE_STEPS.filter((s) => DONE.has(statuses[s.name] as StepStatus)).length;
+  const steps = [...extraSteps(statuses), ...PIPELINE_STEPS];
+  const total = steps.length;
+  const done = steps.filter((s) => DONE.has(statuses[s.name] as StepStatus)).length;
   const pct = Math.round((done / total) * 100);
 
   return (
@@ -47,10 +63,10 @@ export function PipelineProgress({ statuses, activeStep }: PipelineProgressProps
       </div>
 
       <ul className="space-y-0.5">
-        {PIPELINE_STEPS.map((step, i) => {
+        {steps.map((step, i) => {
           const status = statuses[step.name];
           const isActive = activeStep === step.name;
-          const header = PIPELINE_STEPS[i - 1]?.phase !== step.phase ? step.phase : null;
+          const header = steps[i - 1]?.phase !== step.phase ? step.phase : null;
           return (
             <li key={step.name}>
               {header && (

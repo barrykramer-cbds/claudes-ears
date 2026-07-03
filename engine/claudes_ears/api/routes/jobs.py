@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlparse
 from uuid import uuid4
 
 from fastapi import APIRouter, Request, status
@@ -17,22 +18,39 @@ router = APIRouter(tags=["jobs"])
 
 
 class JobCreate(BaseModel):
-    audio_path: str = Field(min_length=1)
+    audio_path: str | None = Field(default=None, min_length=1)
+    source_url: str | None = Field(default=None, min_length=1)
     title: str | None = None
     artist: str | None = None
     skip_separation: bool = False
 
 
-@router.post("/jobs", status_code=status.HTTP_201_CREATED, response_model=Job)
-async def create_job(body: JobCreate, request: Request) -> Job:
-    """Validate the local audio path, queue the job behind the single worker, return it queued."""
-    audio = Path(body.audio_path)
+def _resolve_source(body: JobCreate) -> str:
+    if (body.audio_path is None) == (body.source_url is None):
+        raise ApiError(400, "INVALID_SOURCE", "provide exactly one of audio_path or source_url")
+    if body.source_url is not None:
+        parsed = urlparse(body.source_url)
+        if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+            raise ApiError(400, "INVALID_SOURCE", "source_url must be an http(s) URL")
+        return body.source_url
+    audio = Path(body.audio_path or "")
     if not audio.is_file():
         raise ApiError(400, "INVALID_PATH", "audio_path is not an existing file")
+    return str(audio)
 
+
+@router.post("/jobs", status_code=status.HTTP_201_CREATED, response_model=Job)
+async def create_job(body: JobCreate, request: Request) -> Job:
+    """Validate the source (local path or URL), queue behind the single worker, return it queued."""
+    source = _resolve_source(body)
     state = get_state(request)
-    job = Job(id=uuid4().hex, source_path=str(audio), created_at=datetime.now(UTC))
-    spec = JobSpec(skip_separation=body.skip_separation, title=body.title, artist=body.artist)
+    job = Job(id=uuid4().hex, source_path=source, created_at=datetime.now(UTC))
+    spec = JobSpec(
+        skip_separation=body.skip_separation,
+        title=body.title,
+        artist=body.artist,
+        source_url=body.source_url,
+    )
     state.submit(job, spec)
     return job
 

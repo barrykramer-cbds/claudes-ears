@@ -2,15 +2,17 @@ import { useState } from "react";
 import { Titlebar } from "./Titlebar";
 import { LibrarySidebar } from "./LibrarySidebar";
 import { cn } from "@/lib/utils";
+import type { LibraryEntry } from "@/lib/library-entries";
 
 interface AppShellProps {
+  entries: LibraryEntry[];
   selectedId: string | null;
   onSelectTrack: (id: string) => void;
   onAdd: () => void;
   children: React.ReactNode;
 }
 
-export function AppShell({ selectedId, onSelectTrack, onAdd, children }: AppShellProps) {
+export function AppShell({ entries, selectedId, onSelectTrack, onAdd, children }: AppShellProps) {
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(false);
 
@@ -24,6 +26,7 @@ export function AppShell({ selectedId, onSelectTrack, onAdd, children }: AppShel
         )}
       >
         <LibrarySidebar
+          entries={entries}
           selectedId={selectedId}
           onSelect={onSelectTrack}
           onAdd={onAdd}

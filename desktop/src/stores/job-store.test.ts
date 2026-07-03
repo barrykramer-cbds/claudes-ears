@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProgressHandlers } from "@/lib/api";
 
 vi.mock("@/lib/api", () => ({
+  sourceLabel: (s: { audio_path?: string; source_url?: string }) =>
+    s.audio_path ?? s.source_url ?? "",
   createJob: vi.fn(() =>
     Promise.resolve({
       id: "job1",
@@ -30,7 +32,7 @@ describe("jobStore", () => {
   beforeEach(() => jobStore.getState().reset());
 
   it("drives steps to done from a source path", async () => {
-    await jobStore.getState().start("/music/x.flac");
+    await jobStore.getState().start({ audio_path: "/music/x.flac" });
     const state = jobStore.getState();
     expect(state.status).toBe("done");
     expect(state.jobId).toBe("job1");
@@ -42,13 +44,13 @@ describe("jobStore", () => {
   it("reports failure when createJob throws", async () => {
     const api = await import("@/lib/api");
     vi.mocked(api.createJob).mockRejectedValueOnce(new Error("sidecar down"));
-    await jobStore.getState().start("/music/x.flac");
+    await jobStore.getState().start({ audio_path: "/music/x.flac" });
     expect(jobStore.getState().status).toBe("error");
     expect(jobStore.getState().error).toBe("sidecar down");
   });
 
   it("clears prior state on reset", async () => {
-    await jobStore.getState().start("/music/x.flac");
+    await jobStore.getState().start({ audio_path: "/music/x.flac" });
     jobStore.getState().reset();
     expect(jobStore.getState().status).toBe("idle");
     expect(jobStore.getState().steps).toEqual({});

@@ -19,8 +19,10 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from claudes_ears.config import music_dir
 from claudes_ears.db.library import open_library, upsert_track
-from claudes_ears.models.jobs import Job, JobStatus, ProgressEvent
+from claudes_ears.download import download_audio
+from claudes_ears.models.jobs import Job, JobStatus, ProgressEvent, StepStatus
 from claudes_ears.pipeline.orchestrator import StepResult, run_track
 
 if TYPE_CHECKING:
@@ -40,6 +42,12 @@ class RunTrack(Protocol):
         title: str | None,
         artist: str | None,
     ) -> tuple[PerceptionDocument, dict[str, StepResult | None]]: ...
+
+
+class DownloadAudio(Protocol):
+    def __call__(
+        self, url: str, dest_dir: Path, on_progress: Callable[[str], None] | None = None
+    ) -> Path: ...
 
 
 LIBRARY_ENV = "CLAUDES_EARS_LIBRARY"
@@ -69,6 +77,7 @@ class JobSpec:
     skip_separation: bool
     title: str | None
     artist: str | None
+    source_url: str | None = None
 
 
 @dataclass
@@ -84,6 +93,7 @@ class AppState:
     library_path: Path
     work_dir: Path
     runner: RunTrack = run_track
+    downloader: DownloadAudio = download_audio
     warm: bool = True
     jobs: dict[str, JobState] = field(default_factory=dict)
     pending: asyncio.Queue[str] = field(default_factory=asyncio.Queue)
@@ -119,6 +129,9 @@ async def _run_job(state: AppState, job_id: str) -> None:
 
     job.status = JobStatus.running
     try:
+        if spec.source_url is not None:
+            downloaded = await _download_source(state, job_id, spec.source_url, on_progress)
+            job.source_path = str(downloaded)
         document, _ = await asyncio.to_thread(
             state.runner,
             Path(job.source_path),
@@ -139,7 +152,41 @@ async def _run_job(state: AppState, job_id: str) -> None:
         job.status = JobStatus.completed
         job.finished_at = _now()
     finally:
-        job_state.queue.put_nowait(None)
+        # through the same threadsafe path as events, so the sentinel never overtakes them
+        loop.call_soon_threadsafe(job_state.queue.put_nowait, None)
+
+
+async def _download_source(
+    state: AppState,
+    job_id: str,
+    url: str,
+    on_progress: Callable[[ProgressEvent], None],
+) -> Path:
+    def emit(step_status: StepStatus, message: str | None) -> None:
+        on_progress(
+            ProgressEvent(
+                job_id=job_id,
+                step="download",
+                index=1,
+                total=1,
+                status=step_status,
+                message=message,
+            )
+        )
+
+    emit(StepStatus.started, url)
+    try:
+        path = await asyncio.to_thread(
+            state.downloader,
+            url,
+            music_dir(),
+            lambda percent: emit(StepStatus.started, percent),
+        )
+    except Exception as error:
+        emit(StepStatus.failed, str(error))
+        raise
+    emit(StepStatus.completed, str(path))
+    return path
 
 
 def _persist(state: AppState, document: PerceptionDocument) -> None:
@@ -207,6 +254,7 @@ def _warm_whisper() -> None:
 def create_app(
     *,
     runner: RunTrack = run_track,
+    downloader: DownloadAudio = download_audio,
     library_path: Path | None = None,
     work_dir: Path | None = None,
     warm: bool = True,
@@ -222,6 +270,7 @@ def create_app(
         library_path=resolved_library,
         work_dir=resolved_work,
         runner=runner,
+        downloader=downloader,
         warm=warm,
     )
 

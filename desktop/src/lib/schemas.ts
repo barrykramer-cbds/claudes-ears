@@ -33,6 +33,29 @@ export const JobSchema = z.object({
   finished_at: str.nullish(),
 });
 
+// --- api/routes/library.py: the DuckDB index page -----------------------------
+export const TrackSummarySchema = z.object({
+  track_id: str,
+  title: str.nullish(),
+  artist: str.nullish(),
+  year: num.nullish(),
+  genre: str.nullish(),
+  era: str.nullish(),
+  duration_s: num.nullish(),
+  key: str.nullish(),
+  mode: str.nullish(),
+  tempo: num.nullish(),
+  ai_verdict: str.nullish(),
+  analyzed_at: str.nullish(),
+});
+
+export const TrackPageSchema = z.object({
+  items: z.array(TrackSummarySchema).default([]),
+  total: z.number().int(),
+  page: z.number().int(),
+  limit: z.number().int(),
+});
+
 // --- perception.py: track + separation ---------------------------------------
 const TrackMeta = z.object({
   id: str,
@@ -707,6 +730,8 @@ export const PerceptionDocumentSchema = z.object({
 });
 
 export type ProgressEvent = z.infer<typeof ProgressEventSchema>;
+export type TrackSummary = z.infer<typeof TrackSummarySchema>;
+export type TrackPage = z.infer<typeof TrackPageSchema>;
 export type Job = z.infer<typeof JobSchema>;
 export type JobStatus = z.infer<typeof JobStatusSchema>;
 export type StepStatus = z.infer<typeof StepStatusSchema>;

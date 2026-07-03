@@ -1,6 +1,6 @@
 import { createStore } from "zustand/vanilla";
 import { useStore } from "zustand";
-import { createJob, subscribeProgress } from "@/lib/api";
+import { createJob, sourceLabel, subscribeProgress, type JobSource } from "@/lib/api";
 import type { StepStatus } from "@/lib/schemas";
 
 export type AnalysisStatus = "idle" | "running" | "done" | "error";
@@ -12,7 +12,7 @@ interface JobState {
   steps: Record<string, StepStatus>;
   activeStep: string | null;
   error: string | null;
-  start: (sourcePath: string) => Promise<void>;
+  start: (source: JobSource) => Promise<void>;
   reset: () => void;
 }
 
@@ -36,11 +36,11 @@ export const jobStore = createStore<JobState>((set, get) => ({
     set({ ...initial });
   },
 
-  start: async (sourcePath) => {
+  start: async (source) => {
     get().reset();
-    set({ status: "running", sourcePath });
+    set({ status: "running", sourcePath: sourceLabel(source) });
     try {
-      const job = await createJob(sourcePath);
+      const job = await createJob(source);
       set({ jobId: job.id });
       unsubscribe = subscribeProgress(job.id, {
         onEvent: (event) =>

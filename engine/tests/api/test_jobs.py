@@ -3,8 +3,11 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+import pytest
+
 from claudes_ears.api.app import create_app
-from tests.api.conftest import lifespan_client
+from claudes_ears.config import MUSIC_ENV
+from tests.api.conftest import fake_runner, lifespan_client
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -49,10 +52,32 @@ async def test_create_job_rejects_missing_file(client: httpx.AsyncClient) -> Non
     assert response.json()["error"]["code"] == "INVALID_PATH"
 
 
-async def test_create_job_missing_body_returns_validation_envelope(
+async def test_create_job_rejects_neither_source(client: httpx.AsyncClient) -> None:
+    response = await client.post("/jobs", json={})
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_SOURCE"
+
+
+async def test_create_job_rejects_both_sources(client: httpx.AsyncClient, audio_file: Path) -> None:
+    response = await client.post(
+        "/jobs",
+        json={"audio_path": str(audio_file), "source_url": "https://youtu.be/x"},
+    )
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_SOURCE"
+
+
+@pytest.mark.parametrize("url", ["ftp://example.com/a.mp3", "not-a-url", "https://"])
+async def test_create_job_rejects_non_http_url(client: httpx.AsyncClient, url: str) -> None:
+    response = await client.post("/jobs", json={"source_url": url})
+    assert response.status_code == 400
+    assert response.json()["error"]["code"] == "INVALID_SOURCE"
+
+
+async def test_create_job_wrong_type_returns_validation_envelope(
     client: httpx.AsyncClient,
 ) -> None:
-    response = await client.post("/jobs", json={})
+    response = await client.post("/jobs", json={"audio_path": 123})
     assert response.status_code == 422
     body = response.json()
     assert body["error"]["code"] == "VALIDATION_ERROR"
@@ -90,3 +115,81 @@ async def test_failed_job_is_reported(audio_file: Path, tmp_path: Path) -> None:
         assert final["status"] == "failed"
         assert final["error"] == "separation exploded"
         assert (await client.get(f"/jobs/{job_id}/perception")).status_code == 404
+
+
+async def _download_events(client: httpx.AsyncClient, job_id: str) -> list[str]:
+    lines: list[str] = []
+    async with client.stream("GET", f"/jobs/{job_id}/events") as response:
+        async for line in response.aiter_lines():
+            if line.startswith("data:") and '"download"' in line:
+                lines.append(line)
+    return lines
+
+
+async def test_url_job_downloads_then_runs_pipeline(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    music = tmp_path / "music"
+    monkeypatch.setenv(MUSIC_ENV, str(music))
+
+    def fake_download(
+        url: str, dest_dir: Path, on_progress: Callable[[str], None] | None = None
+    ) -> Path:
+        dest_dir.mkdir(parents=True, exist_ok=True)
+        path = dest_dir / "downloaded.m4a"
+        path.write_bytes(b"audio")
+        if on_progress is not None:
+            on_progress("50%")
+        return path
+
+    app = create_app(
+        runner=fake_runner,
+        downloader=fake_download,
+        library_path=tmp_path / "lib.duckdb",
+        work_dir=tmp_path / "work",
+        warm=False,
+    )
+    async with lifespan_client(app) as client:
+        created = await client.post(
+            "/jobs", json={"source_url": "https://www.youtube.com/watch?v=abc"}
+        )
+        assert created.status_code == 201
+        job_id = created.json()["id"]
+
+        final = await _wait_terminal(client, job_id)
+        assert final["status"] == "completed"
+        assert final["source_path"] == str(music / "downloaded.m4a")
+
+        events = await _download_events(client, job_id)
+        assert any('"started"' in line for line in events)
+        assert any("50%" in line for line in events)
+        assert '"completed"' in events[-1]
+
+
+async def test_url_job_download_failure_fails_job(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv(MUSIC_ENV, str(tmp_path / "music"))
+
+    def broken_download(
+        url: str, dest_dir: Path, on_progress: Callable[[str], None] | None = None
+    ) -> Path:
+        raise RuntimeError("video unavailable")
+
+    app = create_app(
+        runner=fake_runner,
+        downloader=broken_download,
+        library_path=tmp_path / "lib.duckdb",
+        work_dir=tmp_path / "work",
+        warm=False,
+    )
+    async with lifespan_client(app) as client:
+        created = await client.post("/jobs", json={"source_url": "https://youtu.be/abc"})
+        job_id = created.json()["id"]
+
+        final = await _wait_terminal(client, job_id)
+        assert final["status"] == "failed"
+        assert final["error"] == "video unavailable"
+
+        events = await _download_events(client, job_id)
+        assert '"failed"' in events[-1]

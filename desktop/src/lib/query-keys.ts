@@ -6,4 +6,7 @@ export const queryKeys = {
   perception: {
     detail: (jobId: string) => ["perception", jobId] as const,
   },
+  library: {
+    list: ["library"] as const,
+  },
 } as const;
