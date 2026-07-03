@@ -10,6 +10,12 @@ export default defineConfig({
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
   build: { outDir: "dist" },
+  server: {
+    // Same-origin dev: the renderer fetches relative paths; vite forwards to the sidecar.
+    proxy: Object.fromEntries(
+      ["/jobs", "/library"].map((p) => [p, { target: "http://127.0.0.1:8765", changeOrigin: true }]),
+    ),
+  },
   test: {
     globals: true,
     environment: "jsdom",
