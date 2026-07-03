@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Claude's Ears — App Shell</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,ital,wght@9..144,1,400;9..144,1,500&display=swap" rel="stylesheet"/>
+<style>
+:root{--bg:#08090A;--s1:#0F1011;--s2:#141516;--s-in:#1C1C1F;--s-hov:#232326;--bd:#23252A;--bd2:#34343A;--tl:rgba(255,255,255,.05);--tls:rgba(255,255,255,.08);--line:#37393A;--fg:#F7F8F8;--fg2:#D0D6E0;--mut:#8A8F98;--fnt:#62666D;--ac:#5E6AD2;--acl:#828FFF;--solo:#FC7840;--support:#27A644;--dialogue:#5E6AD2;--opp:#EB5757;--merge:#00B8CC;--withdraw:#8A8F98;--font:"Inter",system-ui,sans-serif;--mono:"JetBrains Mono",monospace;--serif:"Fraunces",Georgia,serif}
+*{box-sizing:border-box}html,body{margin:0;height:100%}body{background:var(--bg);color:var(--fg);font-family:var(--font);letter-spacing:-.011em;-webkit-font-smoothing:antialiased}
+.app{display:grid;grid-template-rows:44px 1fr;height:100vh}
+.titlebar{display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid var(--bd);background:var(--s1)}
+.brand{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--fg2)}
+.brand .ear{width:14px;height:14px;border-radius:50%;border:2px solid var(--ac);border-right-color:transparent}
+.tb-right{display:flex;align-items:center;gap:10px}
+.search{display:flex;align-items:center;gap:8px;background:var(--s-in);border:1px solid var(--bd);border-radius:7px;padding:5px 10px;font-size:12px;color:var(--mut);min-width:220px}
+.kbd{font-family:var(--mono);font-size:10px;color:var(--fnt);border:1px solid var(--bd);border-radius:4px;padding:1px 5px;margin-left:auto}
+.add{background:var(--ac);color:#fff;border:0;border-radius:7px;padding:6px 12px;font-size:13px;font-weight:500;cursor:pointer;box-shadow:inset 0 1px 0 0 rgba(255,255,255,.17)}
+.body{display:grid;grid-template-columns:232px 1fr;min-height:0}
+/* sidebar */
+.side{border-right:1px solid var(--bd);background:var(--s1);display:flex;flex-direction:column;min-height:0}
+.side h3{font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--fnt);font-weight:500;padding:16px 16px 8px;margin:0}
+.tracks{flex:1;overflow:auto;padding:2px 8px}
+.trk{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;font-size:13px;color:var(--fg2)}
+.trk:hover{background:var(--s-hov)}
+.trk.active{background:var(--s2);color:var(--fg)}
+.trk .dot{width:7px;height:7px;border-radius:50%;flex:none}
+.trk .meta{display:flex;flex-direction:column;gap:1px;min-width:0}
+.trk .nm{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.trk .sub{font-family:var(--mono);font-size:10px;color:var(--fnt)}
+.side .foot{border-top:1px solid var(--bd);padding:10px}
+.addrow{display:flex;align-items:center;gap:8px;width:100%;background:transparent;border:1px dashed var(--bd2);color:var(--mut);border-radius:7px;padding:8px 10px;font-size:13px;cursor:pointer}
+/* main */
+.main{display:flex;flex-direction:column;min-width:0;min-height:0}
+.thead{display:flex;align-items:baseline;justify-content:space-between;padding:16px 22px 12px}
+.thead .t{font-size:17px;font-weight:600}
+.thead .t .dim{color:var(--fnt);font-weight:400}
+.thead .m{font-family:var(--mono);font-size:12px;color:var(--mut)}
+.scrub{height:3px;margin:0 22px;background:var(--s-in);border-radius:2px;position:relative}
+.scrub .play{position:absolute;left:38%;top:-3px;width:2px;height:9px;background:var(--ac);border-radius:2px;box-shadow:0 0 8px 0 var(--ac)}
+.tabs{display:flex;gap:22px;padding:14px 22px 0;border-bottom:1px solid var(--bd);position:relative}
+.tab{font-size:13px;color:var(--mut);padding-bottom:12px;cursor:pointer}
+.tab.on{color:var(--fg)}
+.tab.on::after{content:"";position:absolute;bottom:-1px;height:2px;width:46px;background:var(--ac);border-radius:2px}
+.pane{flex:1;overflow:auto;padding:22px}
+.card{background:var(--s1);border:1px solid var(--bd);border-radius:12px;box-shadow:inset 0 1px 0 0 var(--tls),0 4px 24px #00000033}
+.swm{padding:20px 22px}
+.sh{display:flex;justify-content:space-between;align-items:baseline}.st{font-size:14px;font-weight:600}.ss{font-family:var(--mono);font-size:11px;color:var(--fnt)}
+.swarm{position:relative;height:230px;margin-top:14px;border-bottom:1px solid var(--bd)}
+.gl{position:absolute;left:0;right:0;height:1px;background:var(--tl)}.pt{position:absolute;width:7px;height:7px;border-radius:50%;transform:translate(-50%,-50%)}.step{position:absolute;height:2px;border-radius:2px;opacity:.5}
+.xa{display:flex;margin-top:10px}.xa span{flex:1;text-align:center;font-family:var(--mono);font-size:10px;color:var(--mut)}
+.row2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-top:16px}
+.dist{padding:18px 20px}.dist h4,.reg h4{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--fnt);margin:0 0 14px;font-weight:500}
+.dbar{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px;color:var(--fg2)}
+.dbar .lab{width:64px}.dbar .track{flex:1;height:6px;background:var(--s-in);border-radius:3px;overflow:hidden}.dbar .fill{height:100%;border-radius:3px}
+.dbar .v{font-family:var(--mono);font-size:11px;color:var(--mut);width:34px;text-align:right}
+.reg{padding:18px 20px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--bd);border:1px solid var(--bd);border-radius:8px;overflow:hidden}
+.stat{background:var(--s1);padding:12px 14px}.stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--fnt)}.stat .vv{font-family:var(--mono);font-size:18px;margin-top:4px}.stat .vv .u{font-size:11px;color:var(--mut)}
+.quote{font-family:var(--serif);font-style:italic;font-size:15px;color:var(--fg2);line-height:1.55;margin:18px 2px 0}
+</style></head>
+<body><div class="app">
+  <div class="titlebar">
+    <div class="brand"><span class="ear"></span> Claude's Ears</div>
+    <div class="tb-right">
+      <div class="search">Search library <span class="kbd">⌘K</span></div>
+      <button class="add">+ Add track</button>
+    </div>
+  </div>
+  <div class="body">
+    <aside class="side">
+      <h3>Library</h3>
+      <div class="tracks">
+        <div class="trk active"><span class="dot" style="background:var(--solo)"></span><div class="meta"><span class="nm">The Weight</span><span class="sub">studio · A · 3:48</span></div></div>
+        <div class="trk"><span class="dot" style="background:var(--dialogue)"></span><div class="meta"><span class="nm">Tokyo, Live</span><span class="sub">live · D · 5:12</span></div></div>
+        <div class="trk"><span class="dot" style="background:var(--merge)"></span><div class="meta"><span class="nm">Ghost Note</span><span class="sub">studio · F#m · 4:03</span></div></div>
+        <div class="trk"><span class="dot" style="background:var(--support)"></span><div class="meta"><span class="nm">Slow Tide</span><span class="sub">demo · C · 3:21</span></div></div>
+        <div class="trk"><span class="dot" style="background:var(--withdraw)"></span><div class="meta"><span class="nm">Carry It Home</span><span class="sub">studio · G · 4:40</span></div></div>
+      </div>
+      <div class="foot"><button class="addrow">+ Add track</button></div>
+    </aside>
+    <main class="main">
+      <div class="thead"><div class="t">The Weight <span class="dim">· studio</span></div><div class="m">A · 71 bpm · 3:48</div></div>
+      <div class="scrub"><span class="play"></span></div>
+      <div class="tabs">
+        <span class="tab on">Voices</span><span class="tab">Harmony</span><span class="tab">Structure</span><span class="tab">Space</span><span class="tab">AI lens</span><span class="tab">Story</span><span class="tab">Library</span>
+      </div>
+      <div class="pane">
+        <div class="card swm">
+          <div class="sh"><div class="st">Vocal relationship · density over time</div><div class="ss">03:48</div></div>
+          <div class="swarm" id="s"></div>
+          <div class="xa"><span>Solo</span><span>Support</span><span>Dialogue</span><span>Opposition</span><span>Merge</span><span>Withdraw</span></div>
+        </div>
+        <div class="row2">
+          <div class="card dist">
+            <h4>Distribution</h4>
+            <div class="dbar"><span class="lab" style="color:var(--solo)">Solo</span><span class="track"><span class="fill" style="width:50%;background:var(--solo)"></span></span><span class="v">0.50</span></div>
+            <div class="dbar"><span class="lab" style="color:var(--support)">Support</span><span class="track"><span class="fill" style="width:30%;background:var(--support)"></span></span><span class="v">0.30</span></div>
+            <div class="dbar"><span class="lab" style="color:var(--dialogue)">Dialogue</span><span class="track"><span class="fill" style="width:20%;background:var(--dialogue)"></span></span><span class="v">0.20</span></div>
+            <p class="quote">"One voice carries the weight alone — until the bridge, where a second steps in to argue, then merges."</p>
+          </div>
+          <div class="card reg">
+            <h4>Register · breath</h4>
+            <div class="stats">
+              <div class="stat"><div class="k">Pitch mean</div><div class="vv">196.4<span class="u"> Hz</span></div></div>
+              <div class="stat"><div class="k">Range</div><div class="vv">14.0<span class="u"> st</span></div></div>
+              <div class="stat"><div class="k">Breathiness</div><div class="vv">0.34</div></div>
+              <div class="stat"><div class="k">Voiced</div><div class="vv">0.62</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+<script>
+var v=function(n){return getComputedStyle(document.documentElement).getPropertyValue(n).trim()};
+var cl=[{c:v('--solo'),n:44,x:8.3},{c:v('--support'),n:26,x:25},{c:v('--dialogue'),n:36,x:41.6},{c:v('--opp'),n:12,x:58.3},{c:v('--merge'),n:22,x:75},{c:v('--withdraw'),n:14,x:91.6}];
+var s=document.getElementById('s');for(var i=1;i<=4;i++){var g=document.createElement('div');g.className='gl';g.style.top=(i*20)+'%';s.appendChild(g)}
+function ga(){var x=0;for(var i=0;i<4;i++)x+=Math.random();return (x/4-.5)*2}
+cl.forEach(function(c){var mean=28+Math.random()*32;var st=document.createElement('div');st.className='step';st.style.background=c.c;st.style.left=(c.x-7.5)+'%';st.style.width='15%';st.style.top=mean+'%';s.appendChild(st);for(var i=0;i<c.n;i++){var p=document.createElement('div');p.className='pt';p.style.background=c.c;p.style.left=(c.x+ga()*6)+'%';p.style.top=(mean+ga()*30)+'%';p.style.opacity=(.5+Math.random()*.5).toFixed(2);p.style.boxShadow='0 0 7px -1px '+c.c;s.appendChild(p)}});
+</script>
+</body></html>

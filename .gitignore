@@ -42,6 +42,5 @@ freq_interaction.json
 .session_state.md
 .DS_Store
 
-# Local tooling + planning (not part of the public repo)
+# Local tooling (not part of the public repo)
 .claude/
-.project/

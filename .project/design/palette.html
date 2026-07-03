@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Claude's Ears — Design System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Fraunces:opsz,ital,wght@9..144,1,400;9..144,1,500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    /* — Backgrounds (Linear-extracted, cold near-black ramp) — */
+    --bg-0:  #08090A;  /* canvas */
+    --bg-1:  #0F1011;  /* panel / floating card */
+    --bg-2:  #141516;  /* surface tint */
+    --bg-3:  #191A1B;
+    --bg-sec: #1C1C1F; /* inputs */
+    --bg-ter: #232326; /* hover */
+
+    /* — Borders / lines — */
+    --border:   #23252A;
+    --border-2: #34343A;
+    --tl:       rgba(255,255,255,0.05);  /* translucent hairline */
+    --tl-strong:rgba(255,255,255,0.08);  /* card top-edge glow */
+    --line:     #37393A;
+
+    /* — Ink (4 levels) — */
+    --text:   #F7F8F8;
+    --text-2: #D0D6E0;
+    --text-3: #8A8F98;
+    --text-4: #62666D;
+
+    /* — Brand / primary action — */
+    --accent:       #5E6AD2;
+    --accent-hover: #6E79E6;
+    --accent-link:  #828FFF;
+    --accent-tint:  #18182F;
+    --on-accent:    #FFFFFF;
+
+    /* — The Voice Taxonomy — Linear's categorical hues, mapped to meaning — */
+    --solo:       #FC7840; /* orange — owns the stage */
+    --support:    #27A644; /* green  — holds underneath */
+    --dialogue:   #5E6AD2; /* indigo — two in exchange */
+    --opposition: #EB5757; /* red    — pulling apart */
+    --merge:      #00B8CC; /* teal   — blending into one */
+    --withdraw:   #8A8F98; /* slate  — stepping back */
+
+    /* — Semantics — */
+    --success: #27A644;
+    --warning: #F0BF00;
+    --danger:  #EB5757;
+    --info:    #4EA7FC;
+
+    /* — Shadows — */
+    --shadow-low:  0px 2px 4px #0000001a;
+    --shadow-med:  0px 4px 24px #00000033;
+    --shadow-high: 0px 7px 32px #00000059;
+
+    --r-4:4px; --r-6:6px; --r-8:8px; --r-12:12px; --r-16:16px; --r-24:24px;
+    --font: "Inter", system-ui, -apple-system, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+    --serif: "Fraunces", Georgia, serif;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg-0); color: var(--text);
+    font-family: var(--font); line-height: 1.6; letter-spacing: -0.011em;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 70px 40px 130px; }
+
+  .eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-link); margin: 0 0 16px; }
+  h1.title { font-weight: 600; font-size: 56px; line-height: 1.06; letter-spacing: -0.03em; margin: 0 0 14px; }
+  .lede { font-size: 18px; color: var(--text-3); max-width: 60ch; margin: 0; }
+  .rule { height: 1px; background: var(--line); opacity: .5; border: 0; margin: 52px 0; }
+
+  h2.sec { font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-4); font-weight: 500; display: flex; align-items: center; gap: 14px; margin: 0 0 24px; }
+  h2.sec::after { content: ""; flex: 1; height: 1px; background: var(--line); opacity: .4; }
+
+  /* the Linear card: panel bg + 1px border + translucent top-edge highlight + soft shadow */
+  .card { position: relative; background: var(--bg-1); border: 1px solid var(--border); border-radius: var(--r-12); box-shadow: inset 0 1px 0 0 var(--tl-strong), var(--shadow-med); }
+
+  .grid { display: grid; gap: 12px; }
+  .g4 { grid-template-columns: repeat(4, 1fr); }
+  .g6 { grid-template-columns: repeat(6, 1fr); }
+
+  .swatch { border: 1px solid var(--border); border-radius: var(--r-8); overflow: hidden; background: var(--bg-1); }
+  .swatch .chip { height: 60px; }
+  .swatch .meta { padding: 10px 12px; }
+  .swatch .name { font-size: 13px; font-weight: 600; }
+  .swatch .desc { font-size: 12px; color: var(--text-4); margin-top: 1px; }
+  .swatch .hex { font-family: var(--mono); font-size: 11px; color: var(--text-3); margin-top: 7px; }
+
+  .voice .chip { display: flex; align-items: center; justify-content: center; background: var(--bg-2); }
+  .voice .dot { width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 12px 0 currentColor; }
+  .voice .vname { font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+
+  .two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; align-items: start; }
+
+  /* beeswarm */
+  .swarm-wrap { padding: 22px 24px 22px; }
+  .swarm-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .swarm-title { font-size: 14px; font-weight: 600; }
+  .swarm-sub { font-family: var(--mono); font-size: 11px; color: var(--text-4); }
+  .swarm { position: relative; height: 270px; margin-top: 14px; border-bottom: 1px solid var(--border); }
+  .swarm .gridline { position: absolute; left: 0; right: 0; height: 1px; background: var(--tl); }
+  .swarm .pt { position: absolute; width: 7px; height: 7px; border-radius: 50%; transform: translate(-50%,-50%); }
+  .swarm .step { position: absolute; height: 2px; border-radius: 2px; opacity: .5; }
+  .xaxis { display: flex; margin-top: 12px; }
+  .xaxis span { flex: 1; text-align: center; font-family: var(--mono); font-size: 10px; color: var(--text-3); }
+
+  /* reading card */
+  .reading { padding: 20px 22px 22px; }
+  .reading-title { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .reading-title .dim { color: var(--text-4); font-weight: 400; }
+  .badges { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 18px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-2); color: var(--text-2); }
+  .badge .d { width: 7px; height: 7px; border-radius: 50%; }
+  .bars { display: flex; align-items: flex-end; gap: 9px; height: 110px; }
+  .bar { flex: 1; border-radius: 4px 4px 0 0; background: linear-gradient(180deg, var(--merge), color-mix(in srgb, var(--merge) 22%, transparent)); }
+  .bar-labels { display: flex; gap: 9px; margin-top: 7px; }
+  .bar-labels span { flex: 1; text-align: center; font-family: var(--mono); font-size: 10px; color: var(--text-4); }
+  .quote { font-family: var(--serif); font-style: italic; font-size: 15px; color: var(--text-2); line-height: 1.55; margin: 18px 0 0; padding-top: 16px; border-top: 1px solid var(--border); }
+
+  /* buttons */
+  .btns { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn { font-family: var(--font); font-weight: 500; font-size: 14px; letter-spacing: -0.01em; border-radius: var(--r-8); padding: 8px 15px; border: 1px solid transparent; cursor: pointer; transition: all .13s ease; }
+  .btn:active { transform: translateY(.5px); }
+  .btn-primary { background: var(--accent); color: var(--on-accent); box-shadow: inset 0 1px 0 0 rgba(255,255,255,0.17); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-secondary { background: var(--bg-ter); color: var(--text); border-color: var(--border-2); }
+  .btn-secondary:hover { border-color: var(--text-4); }
+  .btn-ghost { background: transparent; color: var(--text-3); }
+  .btn-ghost:hover { color: var(--text); background: var(--bg-2); }
+  .btn-sm { padding: 5px 11px; font-size: 13px; }
+
+  /* type */
+  .trow { border-top: 1px solid var(--border); padding: 18px 0; display: grid; grid-template-columns: 150px 1fr; gap: 22px; }
+  .trow:first-child { border: 0; }
+  .ttag { font-family: var(--mono); font-size: 11px; color: var(--text-4); }
+  .ttag .role { color: var(--accent-link); display: block; margin-bottom: 4px; letter-spacing: 0.12em; text-transform: uppercase; }
+  .t-disp { font-weight: 600; font-size: 32px; letter-spacing: -0.03em; }
+  .t-body { font-size: 16px; color: var(--text-3); max-width: 62ch; }
+  .t-mono { font-family: var(--mono); font-size: 15px; letter-spacing: 0; }
+  .t-mono .dim { color: var(--text-4); }
+  .t-serif { font-family: var(--serif); font-style: italic; font-size: 21px; color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Design System — Linear-derived · cold studio</p>
+  <h1 class="title">Claude's Ears</h1>
+  <p class="lede">A tool that listens to music rather than measuring it. Quiet and analytical — color is rare and precise, earned by the data it marks.</p>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Canvas &amp; surfaces</h2>
+  <div class="grid g6">
+    <div class="swatch"><div class="chip" style="background:var(--bg-0)"></div><div class="meta"><div class="name">Canvas</div><div class="hex">#08090A</div></div></div>
+    <div class="swatch"><div class="chip" style="background:var(--bg-1)"></div><div class="meta"><div class="name">Panel</div><div class="hex">#0F1011</div></div></div>
+    <div class="swatch"><div class="chip" style="background:var(--bg-2)"></div><div class="meta"><div class="name">Tint</div><div class="hex">#141516</div></div></div>
+    <div class="swatch"><div class="chip" style="background:var(--bg-sec)"></div><div class="meta"><div class="name">Input</div><div class="hex">#1C1C1F</div></div></div>
+    <div class="swatch"><div class="chip" style="background:var(--bg-ter)"></div><div class="meta"><div class="name">Hover</div><div class="hex">#232326</div></div></div>
+    <div class="swatch"><div class="chip" style="background:var(--accent)"></div><div class="meta"><div class="name">Brand</div><div class="hex">#5E6AD2</div></div></div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">The Voice Taxonomy — the signature palette</h2>
+  <div class="grid g6">
+    <div class="swatch voice"><div class="chip" style="color:var(--solo)"><span class="dot" style="background:var(--solo)"></span></div><div class="meta"><div class="vname" style="color:var(--solo)">Solo</div><div class="desc">owns the stage</div><div class="hex">#FC7840</div></div></div>
+    <div class="swatch voice"><div class="chip" style="color:var(--support)"><span class="dot" style="background:var(--support)"></span></div><div class="meta"><div class="vname" style="color:var(--support)">Support</div><div class="desc">holds underneath</div><div class="hex">#27A644</div></div></div>
+    <div class="swatch voice"><div class="chip" style="color:var(--dialogue)"><span class="dot" style="background:var(--dialogue)"></span></div><div class="meta"><div class="vname" style="color:var(--dialogue)">Dialogue</div><div class="desc">two in exchange</div><div class="hex">#5E6AD2</div></div></div>
+    <div class="swatch voice"><div class="chip" style="color:var(--opposition)"><span class="dot" style="background:var(--opposition)"></span></div><div class="meta"><div class="vname" style="color:var(--opposition)">Opposition</div><div class="desc">pulling apart</div><div class="hex">#EB5757</div></div></div>
+    <div class="swatch voice"><div class="chip" style="color:var(--merge)"><span class="dot" style="background:var(--merge)"></span></div><div class="meta"><div class="vname" style="color:var(--merge)">Merge</div><div class="desc">blending into one</div><div class="hex">#00B8CC</div></div></div>
+    <div class="swatch voice"><div class="chip" style="color:var(--withdraw)"><span class="dot" style="background:var(--withdraw)"></span></div><div class="meta"><div class="vname" style="color:var(--withdraw)">Withdraw</div><div class="desc">stepping back</div><div class="hex">#8A8F98</div></div></div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Signature — voices across the song</h2>
+  <div class="two">
+    <div class="card swarm-wrap">
+      <div class="swarm-head"><div class="swarm-title">Vocal relationship · density over time</div><div class="swarm-sub">03:48</div></div>
+      <div class="swarm" id="swarm"></div>
+      <div class="xaxis"><span>Solo</span><span>Support</span><span>Dialogue</span><span>Opposition</span><span>Merge</span><span>Withdraw</span></div>
+    </div>
+    <div class="card reading">
+      <div class="reading-title">The Weight <span class="dim">· studio</span></div>
+      <div class="badges">
+        <span class="badge"><span class="d" style="background:var(--solo)"></span>Solo dominant</span>
+        <span class="badge"><span class="d" style="background:var(--danger)"></span>Argues with itself</span>
+        <span class="badge"><span class="d" style="background:var(--success)"></span>Human · 0.72</span>
+      </div>
+      <div class="bars">
+        <div class="bar" style="height:80%"></div><div class="bar" style="height:55%"></div><div class="bar" style="height:94%"></div><div class="bar" style="height:42%"></div><div class="bar" style="height:67%"></div><div class="bar" style="height:31%"></div>
+      </div>
+      <div class="bar-labels"><span>vox</span><span>drums</span><span>bass</span><span>gtr</span><span>keys</span><span>amb</span></div>
+      <p class="quote">"One voice carries the weight alone — until the bridge, where a second steps in to argue, then merges."</p>
+    </div>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Buttons</h2>
+  <div class="btns">
+    <button class="btn btn-primary">Analyze track</button>
+    <button class="btn btn-secondary">Compare versions</button>
+    <button class="btn btn-ghost">Reset</button>
+    <span style="width:18px"></span>
+    <button class="btn btn-primary btn-sm">Primary sm</button>
+    <button class="btn btn-secondary btn-sm">Secondary sm</button>
+  </div>
+
+  <hr class="rule" />
+
+  <h2 class="sec">Typography</h2>
+  <div class="trow"><div class="ttag"><span class="role">Display / UI</span>Inter<br />tight tracking</div><div><div class="t-disp">The voice argues with itself, then relents.</div></div></div>
+  <div class="trow"><div class="ttag"><span class="role">Body</span>Inter 400–500</div><div><div class="t-body">Interface chrome, labels, descriptions, and running text — crisp and quiet so the data and the reading carry the meaning.</div></div></div>
+  <div class="trow"><div class="ttag"><span class="role">Data</span>JetBrains Mono</div><div><div class="t-mono">A<span class="dim">maj7</span> → E<span class="dim">/G#</span> → F#<span class="dim">m7</span> &nbsp;<span class="dim">·</span>&nbsp; 196.4<span class="dim">Hz</span> &nbsp; 71.2<span class="dim">bpm</span> &nbsp; <span class="dim">02:14.380</span></div></div></div>
+  <div class="trow"><div class="ttag"><span class="role">Story</span>Fraunces italic<br />sparingly</div><div><div class="t-serif">"The music is the vessel; the story is what it carries."</div></div></div>
+
+</div>
+
+<script>
+  const v = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const clusters = [
+    { c: v('--solo'),       n: 46, cx: 8.3  },
+    { c: v('--support'),    n: 28, cx: 25   },
+    { c: v('--dialogue'),   n: 40, cx: 41.6 },
+    { c: v('--opposition'), n: 14, cx: 58.3 },
+    { c: v('--merge'),      n: 24, cx: 75   },
+    { c: v('--withdraw'),   n: 16, cx: 91.6 },
+  ];
+  const s = document.getElementById('swarm');
+  for (let i = 1; i <= 4; i++) { const g = document.createElement('div'); g.className='gridline'; g.style.top=(i*20)+'%'; s.appendChild(g); }
+  const gauss = () => { let x=0; for(let i=0;i<4;i++)x+=Math.random(); return (x/4-0.5)*2; };
+  clusters.forEach(cl => {
+    const mean = 28 + Math.random()*34;
+    const step = document.createElement('div'); step.className='step'; step.style.background=cl.c; step.style.left=(cl.cx-7.5)+'%'; step.style.width='15%'; step.style.top=mean+'%'; s.appendChild(step);
+    for (let i=0;i<cl.n;i++){ const p=document.createElement('div'); p.className='pt'; p.style.background=cl.c; p.style.left=(cl.cx+gauss()*6)+'%'; p.style.top=(mean+gauss()*32)+'%'; p.style.opacity=(0.5+Math.random()*0.5).toFixed(2); p.style.boxShadow='0 0 7px -1px '+cl.c; s.appendChild(p); }
+  });
+</script>
+</body>
+</html>

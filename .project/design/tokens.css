@@ -1,0 +1,95 @@
+/* Claude's Ears — design tokens (Linear-derived, cold studio · dark only).
+   Drop-in for desktop/renderer/src/styles.css — replace the existing @theme block.
+   Tailwind v4 CSS-first. Every value here is the source of truth; see design-system.md. */
+
+@import "tailwindcss";
+
+@theme {
+  /* — Surfaces: cold near-black ramp — */
+  --color-bg: #08090a;            /* canvas */
+  --color-surface: #0f1011;       /* floating panels / cards */
+  --color-surface-raised: #141516;/* raised within a panel */
+  --color-surface-input: #1c1c1f; /* inputs, wells */
+  --color-surface-hover: #232326; /* hover fill */
+
+  /* — Borders / hairlines — */
+  --color-border: #23252a;
+  --color-border-strong: #34343a;
+  --color-line: #37393a;
+  /* translucent edges (used as the card top-highlight + dividers over color) */
+  --color-edge: oklch(1 0 0 / 0.05);
+  --color-edge-strong: oklch(1 0 0 / 0.08);
+
+  /* — Ink: 4 levels — */
+  --color-fg: #f7f8f8;
+  --color-fg-secondary: #d0d6e0;
+  --color-muted: #8a8f98;
+  --color-faint: #62666d;
+
+  /* — Brand / primary action — */
+  --color-accent: #5e6ad2;
+  --color-accent-hover: #6e79e6;
+  --color-accent-link: #828fff;
+  --color-accent-fg: #ffffff;
+  --color-accent-tint: #18182f;
+
+  /* — Pipeline / status (named to match the existing job UI) — */
+  --color-done: #27a644;
+  --color-active: #5e6ad2;
+  --color-failed: #eb5757;
+  --color-skipped: #62666d;
+  --color-warning: #f0bf00;
+
+  /* — The Voice Taxonomy: the signature palette (load-bearing — used identically everywhere) — */
+  --color-solo: #fc7840;       /* one voice owns the stage */
+  --color-support: #27a644;    /* holds underneath */
+  --color-dialogue: #5e6ad2;   /* two voices in exchange */
+  --color-opposition: #eb5757; /* voices pulling apart */
+  --color-merge: #00b8cc;      /* blending into one */
+  --color-withdraw: #8a8f98;   /* a voice stepping back */
+
+  /* — Categorical data hues (charts, stems, spectra) — */
+  --color-data-blue: #4ea7fc;
+  --color-data-teal: #00b8cc;
+  --color-data-green: #27a644;
+  --color-data-orange: #fc7840;
+  --color-data-red: #eb5757;
+  --color-data-yellow: #f0bf00;
+  --color-data-indigo: #5e6ad2;
+  --color-data-slate: #8a8f98;
+
+  /* — Radii — */
+  --radius-button: 0.5rem;   /* 8px */
+  --radius-card: 0.75rem;    /* 12px */
+  --radius-panel: 1rem;      /* 16px */
+  --radius-pill: 9999px;
+
+  /* — Elevation (Linear's three steps) — */
+  --shadow-low: 0px 2px 4px #0000001a;
+  --shadow-med: 0px 4px 24px #00000033;
+  --shadow-high: 0px 7px 32px #00000059;
+
+  /* — Type families — */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", monospace;
+  --font-serif: "Fraunces", Georgia, serif; /* story voice only, sparingly */
+
+  /* — Motion (Emil doctrine: decisive ease-out for enters) — */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-fg antialiased;
+    font-family: var(--font-sans);
+    letter-spacing: -0.011em; /* Linear's crispness */
+  }
+  /* The signature card: panel + hairline + translucent top-edge highlight + soft shadow. */
+  .card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-card);
+    box-shadow: inset 0 1px 0 0 var(--color-edge-strong), var(--shadow-med);
+  }
+}
